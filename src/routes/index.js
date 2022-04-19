@@ -1,6 +1,7 @@
 const { Router} =  require('express');
 const router = Router();
 
+
 const { getUsers, createUser, getUserById, deleteUser, updateUser } = require('../controllers/index.controller');
 
 const { getProducts, createProduct, getProductById, deleteProduct, updateProduct } = require('../controllers/index.controller');
@@ -12,6 +13,7 @@ router.post('/users',createUser);
 router.delete('/users/:id',deleteUser);
 router.put('/users/:id',updateUser);
 
+router.post("/user/login", login);
 router.get('/products',getProducts);
 router.get('/products/:id',getProductById);
 router.post('/products',createProduct);

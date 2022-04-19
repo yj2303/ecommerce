@@ -2,146 +2,201 @@ const { status } = require('express/lib/response');
 const { Pool } = require('pg');
 const { password } = require('pg/lib/defaults');
 
+const bcrypt = require("bcryptjs");
+var jwt = require("jsonwebtoken");
+require("dotenv").config();
+
 const pool = new Pool({
-    user:"postgres",
-    host : "localhost",
-    database : "postgres",
-    password : "Yashika@123",
+    user: "postgres",
+    host: "localhost",
+    database: "postgres",
+    password: "Yashika@123",
     port: 5432
 })
 
-const getUsers = async (req,res)=>{
-    try
-    {
+const getUsers = async (req, res) => {
+    try {
         const response = await pool.query('SELECT * FROM "users"');
         res.status(200).json(response.rows);
     }
-    catch(error){
+    catch (error) {
         console.log(error);
-        res.send("Error: "+error);
+        res.send("Error: " + error);
     }
 };
-
-const getProductById = async(req,res) => {
+const getUserById = async (req, res) => {
     const id = req.params.id;
-    const response = await pool.query('SELECT * FROM "products" WHERE id = $1',[id]);
+    const response = await pool.query('SELECT * FROM "users" WHERE id = $1', [id]);
     res.json(response.rows);
 };
 
-const createProduct = async (req,res)=>{
-    const {status, title, pictureURL,price,createdBy} = req.body;
-    const response = await pool.query('INSERT INTO products(status, title,pictureURL,price,createdBy) VALUES($1, $2,$3,$4,$5)',[status,title,pictureURL,price,createdBy ]);
-    console.log(response);
-    res.json({
-        message: 'Product Added Successfully',
-        body:{
-            products:{status,title,pictureURL,price,createdBy}
-        }
-    });
-};
+const createUser = async (req, res) => {
 
-const deleteProduct = async(req,res) =>{
-    const id = req.params.id;
-    const response = await pool.query('DELETE FROM "products" WHERE id = $1',[id]);
-    console.log(response);
-    res.json(`Product ${id} deleted successfully`);
-};
-
-const updateProduct = async(req,res) => {
-    const id = req.params.id;
-    const {status, title, pictureURL,price,createdBy} = req.body;
-    const response = await pool.query('UPDATE "products" SET status = $1, title=$2, pictureURL=$3, price=$4,createdBy=$5 WHERE id = $6',[status, title,pictureURL,price,createdBy]);
-    console.log(response);
-    res.json('Product updated successfully');
-};
-const getProducts = async (req,res)=>{
-    try
-    {
-        const response = await pool.query('SELECT * FROM "products"');
-        res.status(200).json(response.rows);
+    const { name, email, password, roles } = req.body;
+     const salt = await bcrypt.genSalt(10);
+  const secPass = await bcrypt.hash(password, salt);
+    if (!name || !email || !password || !roles) {
+        return res.json({
+            success: false,
+            message: "empty fields"
+        })
     }
-    catch(error){
-        console.log(error);
-        res.send("Error: "+error);
-    }
-};
-
-const getUserById = async(req,res) => {
-    const id = req.params.id;
-    const response = await pool.query('SELECT * FROM "users" WHERE id = $1',[id]);
-    res.json(response.rows);
-};
-
-const createUser = async (req,res)=>{
-    const {name, email,password,roles} = req.params;
-    console.log(req.params);
-    const response = await pool.query('INSERT INTO users(name, email, password, roles) VALUES($1, $2, $3, $4)',[name, email, password,roles ]);
+   
+    console.log(req.body);
+    const response = await pool.query('INSERT INTO users(name, email, password, roles) VALUES($1, $2, $3, $4)', [name, email, password, roles],
+    (error, results) => {
+        const authtoken = jwt.sign(
+          { name, email, password, roles },
+          process.env.JWT_SECRET
+        );
+        if (error) throw error;
+        res.status(201).json(authtoken);
+      });
     console.log(response);
-    res.json({
-        message: 'User Added Successfully',
-        body:{
-            user:{name,email, password,roles}
+    res.json(
+        {
+            success: true,
+            message: 'User Added Successfully',
+            body: {
+                user: { name, email, password, roles }
+            }
         }
-    });
+        //req.body
+    );
 };
-
-const deleteUser = async(req,res) =>{
+const login = async (req, res) => {
+    const { email, password } = req.body;
+    pool.query("SELECT * FROM users WHERE email = $1", [email], (error, results) => {
+      if (!results.rows.length) {
+        return res.send("Invalid user");
+      }
+      const comparePassword = bcrypt.compare(password, results.rows[0].password);
+      if (!comparePassword) {
+        return res.status(400).json({
+          error: "Invalid credentials",
+        });
+      } else {
+        const authtoken = jwt.sign({ email, password }, process.env.JWT_SECRET);
+        if (error) throw error;
+        res.status(201).json(authtoken);
+      }
+    });
+  };
+const deleteUser = async (req, res) => {
     const id = req.params.id;
-    const response = await pool.query('DELETE FROM "users" WHERE id = $1',[id]);
+    const response = await pool.query('DELETE FROM "users" WHERE id = $1 and roles= "admin"', [id]);
     console.log(response);
     res.json(`User ${id} deleted successfully`);
 };
 
-const updateUser = async(req,res) => {
+const updateUser = async (req, res) => {
     const id = req.params.id;
-    const {name, email, password, roles} = req.body;
-    const response = await pool.query('UPDATE "users" SET name = $1, email=$2 WHERE id = $3',[name, email,password, roles, id]);
+    const { name, email, password, roles } = req.body;
+    const response = await pool.query('UPDATE "users" SET name = $1, email=$2 WHERE id = $3', [name, email, password, roles, id]);
     console.log(response);
     res.json('User updated successfully');
 };
-const getOrderById = async(req,res) => {
+const getProducts = async (req, res) => {
+    try {
+        const response = await pool.query('SELECT * FROM "product"');
+        res.status(200).json(response.rows);
+    }
+    catch (error) {
+        console.log(error);
+        res.send("Error: " + error);
+    }
+};
+const getProductById = async (req, res) => {
     const id = req.params.id;
-    const response = await pool.query('SELECT * FROM "order" WHERE id = $1',[id]);
+    const response = await pool.query('SELECT * FROM "product" WHERE id = $1', [id]);
     res.json(response.rows);
 };
 
-const createOrder = async (req,res)=>{
-    const {status, items, totalPrice,createdBy} = req.body;
-    const response = await pool.query('INSERT INTO order(status, items,totalPrice,createdBy) VALUES($1, $2,$3,$4)',[status,items,totalPrice,createdBy ]);
+const createProduct = async (req, res) => {
+
+    const { status, title, pictureURL, price, createdBy } = req.body;
+    if (!status|| !title || !pictureURL || !price|| !createdBy) {
+        return res.json({
+            success: false,
+            message: "empty fields"
+        })
+    }
+    console.log(req.body);
+    const response = await pool.query('INSERT INTO product(status, title,pictureURL,price,createdBy) VALUES($1, $2,$3,$4,$5)', [status, title, pictureURL, price, createdBy]);
+   
+    console.log(response);
+    res.json(
+        {
+            success: true,
+            message: 'Product Added Successfully',
+        body: {
+            product: { status, title, pictureURL, price, createdBy }
+            }
+        }
+        //req.body
+    );
+};
+
+
+const deleteProduct = async (req, res) => {
+    const id = req.params.id;
+    const response = await pool.query('DELETE FROM "product" WHERE id = $1', [id]);
+    console.log(response);
+    res.json(`Product ${id} deleted successfully`);
+};
+
+const updateProduct = async (req, res) => {
+    const id = req.params.id;
+    const { status, title, pictureURL, price, createdBy } = req.body;
+    const response = await pool.query('UPDATE "product" SET status = $1, title=$2, pictureURL=$3, price=$4,createdBy=$5 WHERE id = $6', [status, title, pictureURL, price, createdBy]);
+    console.log(response);
+    res.json('Product updated successfully');
+};
+
+const getOrder = async (req, res) => {
+    try {
+        const response = await pool.query('SELECT * FROM "Order"');
+        res.status(200).json(response.rows);
+    }
+    catch (error) {
+        console.log(error);
+        res.send("Error: " + error);
+    }
+};
+
+const getOrderById = async (req, res) => {
+    const id = req.params.id;
+    const response = await pool.query('SELECT * FROM "Order" WHERE id = $1', [id]);
+    res.json(response.rows);
+};
+
+const createOrder = async (req, res) => {
+    const { status, items, total_price, created_by } = req.body;
+    const response = await pool.query('INSERT INTO Order(id,status, items,total_Price,created_by) VALUES($1, $2,$3,$4,$5)', [status, items, total_price, created_by]);
     console.log(response);
     res.json({
         message: 'Order Placed Successfully',
-        body:{
-            product:{status,items,totalPrice,createdBy}
-        }
+
+        order: response
+
     });
 };
 
-const deleteOrder = async(req,res) =>{
+const deleteOrder = async (req, res) => {
     const id = req.params.id;
-    const response = await pool.query('DELETE FROM "order" WHERE id = $1',[id]);
+    const response = await pool.query('DELETE FROM "Order" WHERE id = $1', [id]);
     console.log(response);
     res.json(`Order ${id} deleted successfully`);
 };
 
-const updateOrder = async(req,res) => {
+const updateOrder = async (req, res) => {
     const id = req.params.id;
-    const {status, items, totalPrice, createdBy} = req.body;
-    const response = await pool.query('UPDATE "products" SET status = $1, items=$2, totalPrice=$3, createdBy=$4 WHERE id = $5',[status, items,totalPrice,createdBy]);
+    const { status, items, total_price, created_by } = req.body;
+    const response = await pool.query('UPDATE "Order" SET status = $1, items=$2, total_price=$3, created_by=$4 WHERE id = $5', [status, items, total_price, created_by]);
     console.log(response);
     res.json('Order updated successfully');
 };
-const getOrder = async (req,res)=>{
-    try
-    {
-        const response = await pool.query('SELECT * FROM "order"');
-        res.status(200).json(response.rows);
-    }
-    catch(error){
-        console.log(error);
-        res.send("Error: "+error);
-    }
-};
+
 
 module.exports = {
     getUsers,
@@ -149,6 +204,7 @@ module.exports = {
     createUser,
     deleteUser,
     updateUser,
+    login,
     getProducts,
     getProductById,
     createProduct,
