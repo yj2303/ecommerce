@@ -87,6 +87,19 @@ const deleteUser = async (req, res) => {
     const response = await pool.query('DELETE FROM "users" WHERE id = $1 and roles= "admin"', [id]);
     console.log(response);
     res.json(`User ${id} deleted successfully`);
+    pool.query('SELECT roles FROM users WHERE id = $1', [id], (error, result) => {
+        const isAdmin= result.rows[0].roles;
+        if (isAdmin == "admin") {
+            pool.query('DELETE FROM users WHERE id = $1', [id], (error, results) => {
+                if (error) throw error;
+                res.status(200).send("user deleted successfully");
+              });
+          
+        } else {
+            res.send("Invalid operation");
+            return;
+        }
+      });
 };
 
 const updateUser = async (req, res) => {
@@ -122,7 +135,13 @@ const createProduct = async (req, res) => {
         })
     }
     console.log(req.body);
-    const response = await pool.query('INSERT INTO product(status, title,pictureURL,price,createdBy) VALUES($1, $2,$3,$4,$5)', [status, title, pictureURL, price, createdBy]);
+    const newProductStatus="draft";
+    const token = req.header("auth-token");
+  const data = jwt.verify(token, process.env.JWT_SECRET);
+  const role = data.roles;
+
+  if (role == "admin" || role == "vendor") {
+    const response = await pool.query('INSERT INTO product(status, title,pictureURL,price,createdBy) VALUES($1, $2,$3,$4,$5)', [newProductStatus, title, pictureURL, price, createdBy]);
    
     console.log(response);
     res.json(
@@ -133,25 +152,52 @@ const createProduct = async (req, res) => {
             product: { status, title, pictureURL, price, createdBy }
             }
         }
+
         //req.body
     );
+  }
 };
-
 
 const deleteProduct = async (req, res) => {
     const id = req.params.id;
-    const response = await pool.query('DELETE FROM "product" WHERE id = $1', [id]);
+    const response = await pool.query('DELETE FROM "product" WHERE id = $1 and roles= "admin"', [id]);
     console.log(response);
-    res.json(`Product ${id} deleted successfully`);
+    res.json(`User ${id} deleted successfully`);
+    pool.query('SELECT roles FROM "product" WHERE id = $1', [id], (error, result) => {
+        const isAdmin= result.rows[0].roles;
+        if (isAdmin == "admin") {
+            pool.query('DELETE FROM "product" WHERE id = $1', [id], (error, results) => {
+                if (error) throw error;
+                res.status(200).send("Product deleted successfully");
+              });
+          
+        } else {
+            res.send("Invalid operation");
+            return;
+        }
+      });
 };
 
 const updateProduct = async (req, res) => {
     const id = req.params.id;
-    const { status, title, pictureURL, price, createdBy } = req.body;
-    const response = await pool.query('UPDATE "product" SET status = $1, title=$2, pictureURL=$3, price=$4,createdBy=$5 WHERE id = $6', [status, title, pictureURL, price, createdBy]);
-    console.log(response);
-    res.json('Product updated successfully');
-};
+    const { status} = req.body;
+    const token = req.header("auth-token");
+    const data = jwt.verify(token, process.env.JWT_SECRET);
+    const role = data.roles;
+    pool.query('SELECT * FROM "product" WHERE id=$1', [id], (error, result) => {
+        if (role == "admin"|| role=="vendor") {
+            pool.query("UPDATE products SET status=$1, title=$2, pictureurl=$3, price=$4 WHERE id=$5", [status, id], (error, result) => {
+              if (error) throw error;
+    
+              res.status(200).send("Updated product successfully");
+            });
+          } else {
+            res.send("Only Admin or Vendors can update products");
+          }
+        }
+      
+)};
+
 
 const getOrder = async (req, res) => {
     try {
@@ -182,6 +228,7 @@ const createOrder = async (req, res) => {
     });
 };
 
+
 const deleteOrder = async (req, res) => {
     const id = req.params.id;
     const response = await pool.query('DELETE FROM "Order" WHERE id = $1', [id]);
@@ -196,6 +243,10 @@ const updateOrder = async (req, res) => {
     console.log(response);
     res.json('Order updated successfully');
 };
+
+
+
+
 
 
 module.exports = {
