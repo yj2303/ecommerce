@@ -66,8 +66,10 @@ const login = async (req, res) => {
             message: "empty fields"
         })
     }
+    const results = pool.query("SELECT * FROM users WHERE email = $1", [email])
     try {
-        const results = pool.query("SELECT * FROM users WHERE email = $1", [email])
+      
+      
         if (!results.rows.length) {
             return res.status(400).json({
                 error: "Invalid user",

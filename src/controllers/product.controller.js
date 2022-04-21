@@ -34,13 +34,13 @@ const createProduct = async (req, res) => {
     console.log(req.body);
     const newProductStatus = "draft";
     const token = req.header("auth-token");
-    const data = jwt.verify(token, process.env.JWT_SECRET);
+    const data = jwt.verify(token, "df@");
     const role = data.roles;
 
     if (role == "admin" || role == "vendor") {
-        const response = await pool.query('INSERT INTO product(status, title,pictureURL,price,createdBy) VALUES($1, $2,$3,$4,$5)', [newProductStatus, title, pictureURL, price, createdBy]);
+        pool.query('INSERT INTO product(status, title,pictureURL,price,createdBy) VALUES($1, $2,$3,$4,$5)', [newProductStatus, title, pictureURL, price, createdBy]);
 
-        console.log(response);
+
         res.json(
             {
                 success: true,
@@ -55,11 +55,13 @@ const createProduct = async (req, res) => {
     }
 };
 
+
+
 const deleteProduct = async (req, res) => {
     const id = req.params.id;
     const response = await pool.query('DELETE FROM "product" WHERE id = $1 and roles= "admin"', [id]);
     console.log(response);
-    res.json(`User ${id} deleted successfully`);
+    res.json('User ${id} deleted successfully');
     pool.query('SELECT roles FROM "product" WHERE id = $1', [id], (error, result) => {
         const isAdmin = result.rows[0].roles;
         if (isAdmin == "admin") {

@@ -1,6 +1,4 @@
-const { status } = require('express/lib/response');
 const { pool } = require('./../db');
-const { password } = require('pg/lib/defaults');
 
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -60,8 +58,8 @@ const createUser = async (req, res) => {
         //req.body
     );
 };
-const login = async (req, res) => {
-    const { email, password } = req.body;
+var login = async (req, res) => {
+    var { email, password } = req.body;
     if (!email || !password) {
         return res.json({
             success: false,
@@ -69,13 +67,11 @@ const login = async (req, res) => {
         })
     }
     try {
-        const results = pool.query("SELECT * FROM users WHERE email = $1", [email])
-        if (!results.rows.length) {
-            return res.status(400).json({
-                error: "Invalid user",
-            });
-        }
-        const comparePassword = bcrypt.compare(password, results.rows[0].password);
+
+        const results = pool.query('SELECT password FROM users WHERE email = $1', [email]);
+
+        //const results = [2,"njdsbhfdf","svdvv","df@","Admin"];
+        comparePassword = bcrypt.compare(password, results);
         if (!comparePassword) {
             return res.status(400).json({
                 error: "Invalid credentials",
@@ -91,25 +87,32 @@ const login = async (req, res) => {
         });
     }
 };
-const deleteUser = async (req, res) => {
-    const id = req.params.id;
-    const response = await pool.query('DELETE FROM "users" WHERE id = $1 and roles= "admin"', [id]);
-    console.log(response);
-    res.json(`User ${id} deleted successfully`);
-    pool.query('SELECT roles FROM users WHERE id = $1', [id], (error, result) => {
-        const isAdmin = result.rows[0].roles;
-        if (isAdmin == "admin") {
-            pool.query('DELETE FROM users WHERE id = $1', [id], (error, results) => {
-                if (error) throw error;
-                res.status(200).send("user deleted successfully");
-            });
 
+
+
+
+const deleteUser = (req, res) => {
+    const id = parseInt(req.params.id);
+    pool.query("SELECT * FROM users WHERE id= $1", [id], (error, result) => {
+      if (!result.rows.length) {
+        res.send("no user found");
+        return;
+      }
+  
+      pool.query("SELECT roles FROM users WHERE id = $1", [id], (error, result) => {
+        if (result.rows[0].roles == "admin") {
+            pool.query("DELETE FROM users WHERE id = $1", [id], (error, results) => {
+                if (error) throw error;
+                res.status(200).send("user  {$id} deleted successfully");
+              });
+          
         } else {
-            res.send("Invalid operation");
+            res.send("Invalid delete operation");
             return;
         }
+      });
     });
-};
+  };
 
 const updateUser = async (req, res) => {
     const id = req.params.id;

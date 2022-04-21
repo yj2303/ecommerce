@@ -8,7 +8,7 @@ const userServices = (req, res, next) => {
         const userName = jwt.verify(token, process.env.JWT_SECRET);
         console.log(userName)
         req.user = userName.user;
-        const role = userName.roles
+        const roles = userName.roles
         console.log("roles "+ roles)
         next();
     } catch (error) {
