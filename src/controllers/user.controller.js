@@ -22,10 +22,12 @@ const getUserById = async (req, res) => {
 
 const createUser = async (req, res) => {
 
-    const { name, email, password, roles } = req.body;
+    let { name, email, password, roles } = req.body;
     console.log(req.body);
     const salt = await bcrypt.genSalt(10);
-    const secPass = await bcrypt.hash(password, salt);
+    
+        const hashedPassword = await bcrypt.hash(password, salt);
+        password = hashedPassword;
 
     if (!name || !email || !password || !roles) {
         return res.json({
@@ -33,10 +35,6 @@ const createUser = async (req, res) => {
             message: "empty fields"
         })
     }
-
-
-
-    console.log(req.body);
     const response = await pool.query('INSERT INTO users(name, email, password, roles) VALUES($1, $2, $3, $4)', [name, email, password, roles],
         (error, results) => {
             const authtoken = jwt.sign(
@@ -44,9 +42,8 @@ const createUser = async (req, res) => {
                 process.env.JWT_SECRET
             );
             if (error) console.log(error.message);
-            res.status(201).json(authtoken);
+          //  res.status(201).json(authtoken);
         });
-    console.log(response);
     res.json(
         {
             success: true,
@@ -59,7 +56,9 @@ const createUser = async (req, res) => {
     );
 };
 var login = async (req, res) => {
+    
     var { email, password } = req.body;
+
     if (!email || !password) {
         return res.json({
             success: false,
@@ -68,16 +67,24 @@ var login = async (req, res) => {
     }
     try {
 
-        const results = pool.query('SELECT password FROM users WHERE email = $1', [email]);
-
+        let {rows} = await pool.query('SELECT password FROM users WHERE email = $1', [email]);
+        console.log(rows);
+      //  console.log(results);
+        console.log("results1");
         //const results = [2,"njdsbhfdf","svdvv","df@","Admin"];
-        comparePassword = bcrypt.compare(password, results);
+        const comparePassword = await bcrypt.compareSync(password, rows[0].password);
+        console.log(rows[0].password);
+        console.log(password);
         if (!comparePassword) {
             return res.status(400).json({
                 error: "Invalid credentials",
             });
         }
-        const authtoken = jwt.sign({ email, password }, process.env.JWT_SECRET);
+        let row =await pool.query('SELECT id from users where email = $1',[email]);
+        console.log(row.rows);
+        const id= row.rows[0].id;
+        const authtoken = jwt.sign({ email ,id}, process.env.JWT_SECRET);
+        
         res.status(201).json(authtoken);
     } catch (error) {
         console.log("error is here", error)

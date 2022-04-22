@@ -23,4 +23,4 @@ app.use('/product', productRoute);
 
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = 0;
 const port=3015;
-app.listen((process.env.PORT||3015), ()=>{console.log('listening to the port ${port}')});
+app.listen((process.env.PORT||3015), ()=>{console.log('listening to the port' + port)});
